@@ -33,7 +33,7 @@ def can_complete(view):
   language = get_language(view)
   return language in drivers
 
-
+# No Sublime in this class
 class WraperComplete(object):
 
   def __init__(self):
@@ -218,12 +218,13 @@ class Complete(object):
     return Complete.member_regex.search(line) != None
 
 
-class ClangClean(sublime_plugin.TextCommand):
-  def run(self, edit):
-    if not can_complete(self.view):
-      return
+# class ClangClean(sublime_plugin.TextCommand):
+#   def run(self, edit):
+#     print('Called: ClangClean')
+#     if not can_complete(self.view):
+#       return
 
-    Complete.clean()
+#     Complete.clean()
 
 
 class ClangGotoDef(sublime_plugin.TextCommand):
@@ -317,11 +318,13 @@ class CCAutoComplete(sublime_plugin.EventListener):
         results = sym.complete_at(line, col, unsaved_files)
         complete = results.match(prefix)
         ret = []
+
         print("prefix: %s len:%d" % (prefix, len(complete)))
         for i, name, v in complete:
           entry = Complete.wraper.get_entry(v)
           # print("[%d] %s  %s" % (i, entry[1], v.kind))
           ret.append(entry)
+        print(ret)
         if len(ret) > 0:
           self.complete_result = ret
           self.per_complete()
