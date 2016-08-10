@@ -18,6 +18,10 @@ class Batman():
        if hasattr( obj, attr ):
            print( "obj.%s = %s" % (attr, getattr(obj, attr)))
 
+  @staticmethod
+  def fake_view(view):
+    return view
+
 
 language_regex = re.compile("(?<=source\.)[\w+#]+")
 drivers = {
@@ -29,10 +33,9 @@ drivers = {
 
 def get_unsaved_files(view):
   buffer = None
-  #buffer = [('/Users/darky/Desktop/sublimecppsenses/test.cpp', '#i')]
+  # buffer = [('/Users/darky/Desktop/sublimecppsenses/test.cpp', '#i')]
   if view.is_dirty(): #probably means if there is any code
       buffer = [(view.file_name(), view.substr(sublime.Region(0, view.size())))]
-  print(buffer,'buffer')
   return buffer
 
 def get_language(view):
@@ -66,7 +69,6 @@ class WraperComplete(object):
       CXCursorKind.VAR_DECL: self._var,
       CXCursorKind.ENUM_CONSTANT_DECL: self._var,
 
-
       CXCursorKind.PARM_DECL: self._var,
       CXCursorKind.TYPEDEF_DECL: self._typdef,
 
@@ -89,7 +91,6 @@ class WraperComplete(object):
     print("unknow kind: ", v.kind, v.name)
     trigger, contents = self._attach(v)
     return (trigger, contents)
-
 
 
   def _attach(self, v, begin_idx=0):
@@ -156,6 +157,9 @@ class WraperComplete(object):
   def _struct(self, v, t="struct"):
     trigger = "%s\t%s" % (v.name, t)
     return (trigger, v.name)
+
+# No Sublime in above class
+
 
 
 class Complete(object):
@@ -325,7 +329,7 @@ class CCAutoComplete(sublime_plugin.EventListener):
     line += 1
     if len(prefix) == 0:
       col += 1
-
+    # line, col : index from 1
     file_name = view.file_name()
 
     if not can_complete(view) or file_name==None:
@@ -346,7 +350,6 @@ class CCAutoComplete(sublime_plugin.EventListener):
         results = sym.complete_at(line, col, unsaved_files)
         complete = results.match(prefix)
         ret = []
-
         print("prefix: %s len:%d" % (prefix, len(complete)))
         for i, name, v in complete:
           entry = Complete.wraper.get_entry(v)
@@ -363,7 +366,6 @@ class CCAutoComplete(sublime_plugin.EventListener):
         return ([], flag)
       else:  
         return None
-
     else:
       print("complete busy!")
       return None
