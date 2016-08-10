@@ -6,6 +6,19 @@ import sublime, sublime_plugin
 from .clang_error import *
 from .cc import *
 
+# It's not who I am underneath,
+# but what I do that defines me.
+class Batman():
+  def __init__(self):
+    self.sublime_view = {}
+
+  @staticmethod
+  def dump(obj):
+   for attr in dir(obj):
+       if hasattr( obj, attr ):
+           print( "obj.%s = %s" % (attr, getattr(obj, attr)))
+
+
 language_regex = re.compile("(?<=source\.)[\w+#]+")
 drivers = {
   "c++": "-xc++",
@@ -31,8 +44,9 @@ def get_language(view):
 
 
 def can_complete(view):
+  return True
   language = get_language(view)
-  return language in drivers
+  return language in drivers # returns true
 
 # No Sublime in this class
 class WraperComplete(object):
@@ -151,14 +165,17 @@ class Complete(object):
 
   @staticmethod
   def clean():
+    print('clean')
     Complete.symbol_map = {}
 
   @staticmethod
   def get_settings():
+    print('settings')
     return sublime.load_settings("cc.sublime-settings")
 
   @staticmethod
   def get_opt(view):
+    print('get_opt')
     settings = Complete.get_settings()
     additional_lang_opts = settings.get("additional_language_options", {})
     language = get_language(view)
@@ -181,11 +198,13 @@ class Complete(object):
 
   @staticmethod
   def is_inhibit():
+    print('is_inhibit')
     settings = Complete.get_settings()
     return settings.has("inhibit") and settings.get("inhibit") or False
 
   @staticmethod
   def get_symbol(file_name, view, unsaved_files=[]):
+    print('get_symbol')
     self = Complete
     if file_name in self.symbol_map:
       return self.symbol_map[file_name]
@@ -198,18 +217,22 @@ class Complete(object):
 
   @staticmethod
   def del_symbol(file_name):
+    print('del_symbol')
     self = Complete
     if file_name in self.symbol_map:
       del self.symbol_map[file_name]
 
+  # checks if last characters
   @staticmethod
   def is_member_completion(view):
+    print('is_member_completion', view.sel()[0])
     # fast check
     point = view.sel()[0].begin() - 1
     if point < 0:
       return False
 
     cur_char = view.substr(point)
+    print(cur_char, 'cur_char')
     # print "cur_char:", cur_char
     if cur_char and cur_char != "." and cur_char != ">" and cur_char != ":" and cur_char != "[":
       return False
@@ -252,48 +275,52 @@ class CCAutoComplete(sublime_plugin.EventListener):
   dirty = False
 
   def on_modified(self, view):
+    print('on_modified')
     self.dirty = True
     if can_complete(view) and Complete.is_member_completion(view):
       self.per_complete()
 
 
   def per_complete(self):
-    sublime.active_window().run_command("hide_auto_complete")
+    print('per_complete')
+    #sublime.active_window().run_command("hide_auto_complete") #no idea
     def hack2():
       sublime.active_window().run_command("auto_complete",{
         'disable_auto_insert': True,
         'api_completions_only': Complete.is_inhibit(),
         'next_competion_if_showing': False
       })
-    sublime.set_timeout(hack2, 1)
+    #sublime.set_timeout(hack2, 1)
 
 
-  def on_post_save_async(self, view):
-    if not can_complete(view):
-      return 
+  # def on_post_save_async(self, view):
+  #   print('on_post_save_async')
+  #   if not can_complete(view):
+  #     return 
 
-    settings = Complete.get_settings()
-    hide_error_panel = settings.get('hide_error_panel') or False
-    hide_error_mark = settings.get('hide_error_mark') or False
-    file_name = view.file_name()
-    sym = Complete.get_symbol(file_name, view)
-    if self.dirty:
-      sym.reparse()
-    self.dirty = False
-    digst = sym.diagnostic()
+  #   settings = Complete.get_settings()
+  #   hide_error_panel = settings.get('hide_error_panel') or False
+  #   hide_error_mark = settings.get('hide_error_mark') or False
+  #   file_name = view.file_name()
+  #   sym = Complete.get_symbol(file_name, view)
+  #   if self.dirty:
+  #     sym.reparse()
+  #   self.dirty = False
+  #   digst = sym.diagnostic()
     
-    output = "\n".join([err for _, (_, _, _, _, err) in digst])
-    clang_error_panel.set_data(output)
-    clang_error_panel.error_marks(view, digst, not hide_error_mark)
+  #   output = "\n".join([err for _, (_, _, _, _, err) in digst])
+  #   clang_error_panel.set_data(output)
+  #   clang_error_panel.error_marks(view, digst, not hide_error_mark)
 
-    if output:
-      print(output)
-    window = view.window()
-    if not window is None and len(digst) >= 1:
-      window.run_command("clang_toggle_panel", {"show": not hide_error_panel})
+  #   if output:
+  #     print(output)
+  #   window = view.window()
+  #   if not window is None and len(digst) >= 1:
+  #     window.run_command("clang_toggle_panel", {"show": not hide_error_panel})
 
   
   def on_query_completions(self, view, prefix, locations):
+    print('on_query_completions')
     line, col = view.rowcol(locations[0])
     line += 1
     if len(prefix) == 0:
