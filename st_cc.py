@@ -6,7 +6,6 @@ import sublime, sublime_plugin
 from .clang_error import *
 from .cc import *
 
-
 language_regex = re.compile("(?<=source\.)[\w+#]+")
 drivers = {
   "c++": "-xc++",
@@ -17,8 +16,10 @@ drivers = {
 
 def get_unsaved_files(view):
   buffer = None
-  if view.is_dirty():
+  #buffer = [('/Users/darky/Desktop/sublimecppsenses/test.cpp', '#i')]
+  if view.is_dirty(): #probably means if there is any code
       buffer = [(view.file_name(), view.substr(sublime.Region(0, view.size())))]
+  print(buffer,'buffer')
   return buffer
 
 def get_language(view):
@@ -26,7 +27,7 @@ def get_language(view):
   language = language_regex.search(view.scope_name(caret))
   if language != None:
     language = language.group(0)
-  return language
+  return language # returns objective/c/c++
 
 
 def can_complete(view):
@@ -227,22 +228,22 @@ class Complete(object):
 #     Complete.clean()
 
 
-class ClangGotoDef(sublime_plugin.TextCommand):
-  def run(self, edit):
-    if not can_complete(self.view):
-      return
+# class ClangGotoDef(sublime_plugin.TextCommand):
+#   def run(self, edit):
+#     if not can_complete(self.view):
+#       return
 
-    filename = self.view.file_name()
-    pos = self.view.sel()[0].begin()
-    row, col = self.view.rowcol(pos)
+#     filename = self.view.file_name()
+#     pos = self.view.sel()[0].begin()
+#     row, col = self.view.rowcol(pos)
 
-    sym = Complete.get_symbol(filename, self.view)
-    location = sym.get_def(filename, row+1, col+1)
-    if location.has :
-      # print(location.target)
-      self.view.window().open_file(location.target, sublime.ENCODED_POSITION)
-    else:
-      sublime.status_message("Cant find definition")
+#     sym = Complete.get_symbol(filename, self.view)
+#     location = sym.get_def(filename, row+1, col+1)
+#     if location.has :
+#       # print(location.target)
+#       self.view.window().open_file(location.target, sublime.ENCODED_POSITION)
+#     else:
+#       sublime.status_message("Cant find definition")
 
 
 class CCAutoComplete(sublime_plugin.EventListener):

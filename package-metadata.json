@@ -1,0 +1,1 @@
+{"version": "0.1.14", "url": "https://github.com/lvzixun/Clang-Complete", "platforms": ["osx"], "description": "a auto complete plugin for sublimetext3", "sublime_text": ">=3000", "dependencies": []}
