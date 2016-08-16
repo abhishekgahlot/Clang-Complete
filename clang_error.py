@@ -1,4 +1,4 @@
-import sublime, sublime_plugin
+'''import sublime, sublime_plugin
 
 
 class ClangTogglePanel(sublime_plugin.WindowCommand):
@@ -93,4 +93,4 @@ class ClangErrorPanel(object):
         view.erase_regions('sublimeclang-outlines-fatal error')
 
 
-clang_error_panel = ClangErrorPanel()
+clang_error_panel = ClangErrorPanel()'''
