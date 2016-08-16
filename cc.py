@@ -1,8 +1,25 @@
 from ctypes import cdll, Structure, POINTER, c_char_p, c_void_p, c_uint, c_bool, c_ulong, c_int
-from .clang import CXUnsavedFile, CXCompletionChunkKind, CXCursorKind
+from clang import CXUnsavedFile, CXCompletionChunkKind, CXCursorKind
 from sys import platform as _platform
 import os
 import re
+# It's not who I am underneath,
+# but what I do that defines me.
+class Batman():
+  def __init__(self):
+    self.sublime_view = {}
+
+  # print properties
+  @staticmethod
+  def dump(obj):
+   for attr in dir(obj):
+       if hasattr( obj, attr ):
+           print( "obj.%s = %s" % (attr, getattr(obj, attr)))
+
+  # Somehow imitate sublime view
+  @staticmethod
+  def fake_view(view):
+    return view
 
 
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -277,35 +294,22 @@ class CCSymbol(object):
     filename = filename.encode('utf-8')
     return libcc_symbol_def(self.c_obj, filename, line, col)
 
-
-# def main():
-#   opt = [
-#     "-Wall",
-#     "-I/Users/zixunlv/codes/A2/src",
-#   ]
-
-#   filename = "/Users/zixunlv/codes/clang-complete/t.c"
-#   symbol = CCSymbol(filename, opt)
-#   result = symbol.complete_at(25, 3)
-#   complete = result.match("fun")
-
-#   # complete
-#   # for i, name, v in complete:
-#   #   print("[%d] name: %s type: %s  info: %s" % (i, name, v.kind, v.info))
-#   #   for j, trunk in v:
-#   #     print("  trunk: %s kind: %s" % (trunk.value, trunk.kind))
-#   #   print("==========")
-
-#   # diagnostic
-#   # for i, err in symbol.diagnostic():
-#   #   print "[%d] %s" % (i, err)
-
-#   # goto definition
-#   definition = symbol.get_def(filename, 21, 3)
-#   print(definition.filename, definition.line, definition.col, definition.has)
-
-# if __name__ == '__main__':
-#   main()
-
 __all__ = ["CCSymbol", "CCResult", "CXDiagnosticSet", "CXUnsavedFile", "CXCompletionChunkKind", "CXCursorKind"]
+
+def main():
+  opt = ['-xc++', '-isystem', '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/6.0/include', '-isystem', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/', '-isystem', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/c++/4.2.1', '-F/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/Frameworks/', '-isystem', '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1', '-isystem', '/usr/local/opt/llvm/include', '-Wall']
+
+  filename = "/Users/darky/Desktop/test.cpp"
+  symbol = CCSymbol(filename, opt, [('/Users/darky/Desktop/test.cpp', '#i')])
+  result = symbol.complete_at(1, 2)
+  #print(Batman.dump(result))
+  print(result,'batman')
+  complete = result.match('i')
+  ret = []
+  for i, name, v in complete:
+    print(i, name, v)
+
+if __name__ == '__main__':
+  main()
+
 
