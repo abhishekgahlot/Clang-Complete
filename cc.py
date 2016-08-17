@@ -3,6 +3,7 @@ from clang import CXUnsavedFile, CXCompletionChunkKind, CXCursorKind
 from sys import platform as _platform
 import os
 import re
+
 # It's not who I am underneath,
 # but what I do that defines me.
 class Batman():
@@ -21,6 +22,193 @@ class Batman():
   def fake_view(view):
     return view
 
+class WraperComplete(object):
+
+  def __init__(self):
+    self._dispatch_map = {
+      CXCursorKind.FIELD_DECL: self._field,
+
+      CXCursorKind.FUNCTION_TEMPLATE: self._function,
+      CXCursorKind.CXX_METHOD: self._function,
+      CXCursorKind.FUNCTION_DECL: self._function,
+      CXCursorKind.DESTRUCTOR: self._function,
+
+      CXCursorKind.NAMESPACE: self._namespace,
+      CXCursorKind.MACRO_DEFINITION: self._macro,
+      CXCursorKind.NOT_IMPLEMENTED: self._not_implemented,
+      CXCursorKind.VAR_DECL: self._var,
+      CXCursorKind.ENUM_CONSTANT_DECL: self._var,
+
+      CXCursorKind.PARM_DECL: self._var,
+      CXCursorKind.TYPEDEF_DECL: self._typdef,
+
+      CXCursorKind.CONSTRUCTOR: lambda v:self._struct(v, "constructor"),
+      CXCursorKind.UNION_DECL: lambda v:self._struct(v, "union"),
+      CXCursorKind.CLASS_TEMPLATE: lambda v:self._struct(v, "classTemplate"),
+      CXCursorKind.CLASS_DECL: lambda v:self._struct(v, "class"),
+      CXCursorKind.STRUCT_DECL: self._struct,
+    }
+
+
+  def get_entry(self, v):
+    if v.kind in self._dispatch_map:
+      func = self._dispatch_map[v.kind]
+      return func(v)
+    return self._unknow(v)
+
+
+  def _unknow(self, v):
+    print("unknow kind: ", v.kind, v.name)
+    trigger, contents = self._attach(v)
+    return (trigger, contents)
+
+
+  def _attach(self, v, begin_idx=0):
+    decl = ""
+    contents = ""
+    holder_idx = 1
+    for i in range(begin_idx, v.length):
+      trunk = v[i]
+      value = trunk.value
+      delc_value = value
+      kind = trunk.kind
+      if kind == CXCompletionChunkKind.Placeholder:
+        value = "${%d:%s}" % (holder_idx, value)
+        holder_idx += 1
+      elif kind == CXCompletionChunkKind.Informative:
+        value = ""
+      elif kind== CXCompletionChunkKind.ResultType:
+        value = ""
+        delc_value = ""
+      contents += value
+      decl += delc_value
+    return decl, contents
+
+
+  def _typdef(self, v):
+    _v, contents = self._attach(v)
+    trigger = "%s\t%s" % (_v, "Typedef")
+    return (trigger, contents)
+
+
+  def _function(self, v):
+    return_type = v[0].value
+    func_decl, contents = self._attach(v, 1)
+    trigger = "%s\t%s" % (func_decl, return_type)
+    return (trigger, contents)
+
+
+  def _not_implemented(self, v):
+    _v, contents = self._attach(v)
+    trigger = "%s\t%s" % (_v, "KeyWord")
+    return (trigger, contents)
+
+  def _namespace(self, v):
+    macro, contents = self._attach(v)
+    trigger = "%s\t%s" % (macro, "namespace")
+    return (trigger, contents)
+
+  def _macro(self, v):
+    macro, contents = self._attach(v)
+    trigger = "%s\t%s" % (macro, "Macro")
+    return (trigger, contents)
+
+  def _var(self, v):
+    var = v.name
+    var_type = v[0].value
+    trigger = "%s\t%s" % (var, var_type)
+    return (trigger, var)
+
+  def _field(self, v):
+    return self._var(v)
+
+
+  def _struct(self, v, t="struct"):
+    trigger = "%s\t%s" % (v.name, t)
+    return (trigger, v.name)
+
+class Complete(object):
+  symbol_map = {}
+  wraper = WraperComplete()
+  member_regex = re.compile(r"(([a-zA-Z_]+[0-9_]*)|([\)\]])+)((\.)|(->)|(::))$")
+
+  @staticmethod
+  def clean():
+    print('clean')
+    Complete.symbol_map = {}
+
+  @staticmethod
+  def get_settings():
+    print('settings')
+    return sublime.load_settings("cc.sublime-settings")
+
+  @staticmethod
+  def get_opt(view):
+    print('get_opt')
+    settings = Complete.get_settings()
+    additional_lang_opts = settings.get("additional_language_options", {})
+    language = get_language(view)
+    project_settings = view.settings()
+    include_opts = settings.get("include_options", []) + project_settings.get("cc_include_options", [])
+
+    window = sublime.active_window()
+    variables = window.extract_variables()
+    include_opts = sublime.expand_variables(include_opts, variables)
+
+    opt = [drivers[language]]
+    if language in additional_lang_opts:
+      for v in additional_lang_opts[language]:
+        opt.append(v)
+
+    for v in include_opts:
+      opt.append(v)
+    print("clang options: ", opt)
+    return opt
+
+  @staticmethod
+  def is_inhibit():
+    print('is_inhibit')
+    settings = Complete.get_settings()
+    return settings.has("inhibit") and settings.get("inhibit") or False
+
+  @staticmethod
+  def get_symbol(file_name, view, unsaved_files=[]):
+    print('get_symbol')
+    self = Complete
+    if file_name in self.symbol_map:
+      return self.symbol_map[file_name]
+
+    else:
+      opt = self.get_opt(view)
+      sym = CCSymbol(file_name, opt, unsaved_files)
+      self.symbol_map[file_name] = sym
+      return sym
+
+  @staticmethod
+  def del_symbol(file_name):
+    print('del_symbol')
+    self = Complete
+    if file_name in self.symbol_map:
+      del self.symbol_map[file_name]
+
+  # checks if last characters
+  @staticmethod
+  def is_member_completion(view):
+    print('is_member_completion', view.sel()[0])
+    # fast check
+    point = view.sel()[0].begin() - 1
+    if point < 0:
+      return False
+
+    cur_char = view.substr(point)
+    print(cur_char, 'cur_char')
+    # print "cur_char:", cur_char
+    if cur_char and cur_char != "." and cur_char != ">" and cur_char != ":" and cur_char != "[":
+      return False
+
+    caret= view.sel()[0].begin()
+    line = view.substr(sublime.Region(view.line(caret).a, caret))
+    return Complete.member_regex.search(line) != None
 
 current_path = os.path.dirname(os.path.abspath(__file__))
 if _platform == "win32":
@@ -297,17 +485,16 @@ class CCSymbol(object):
 __all__ = ["CCSymbol", "CCResult", "CXDiagnosticSet", "CXUnsavedFile", "CXCompletionChunkKind", "CXCursorKind"]
 
 def main():
-  opt = ['-xc++', '-isystem', '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/6.0/include', '-isystem', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/', '-isystem', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/c++/4.2.1', '-F/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/Frameworks/', '-isystem', '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1', '-isystem', '/usr/local/opt/llvm/include', '-Wall']
-
+  opt = ['-xc++']
   filename = "/Users/darky/Desktop/test.cpp"
-  symbol = CCSymbol(filename, opt, [('/Users/darky/Desktop/test.cpp', '#i')])
-  result = symbol.complete_at(1, 2)
+  symbol = CCSymbol(filename, opt)
+  result = symbol.complete_at(3, 1)
   #print(Batman.dump(result))
   print(result,'batman')
-  complete = result.match('i')
+  complete = result.match('p')
   ret = []
   for i, name, v in complete:
-    print(i, name, v)
+    print(i, name, Complete.wraper.get_entry(v))
 
 if __name__ == '__main__':
   main()
